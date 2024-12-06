@@ -3,13 +3,13 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBkkFF0XhNZeWuDmOfEhsgdfX1VBG7WTas",
-  authDomain: "scheduler-demo-dev.firebaseapp.com",
-  projectId: "scheduler-demo-dev",
-  storageBucket: "scheduler-demo-dev.appspot.com",
-  messagingSenderId: "581326886241",
-  appId: "1:581326886241:web:c544ef563e789d5913920f"
-};
+    apiKey: "AIzaSyCpoL1D2ucn2VX8KAmyK2KZauHlQMDvb78",
+    authDomain: "papd-scheduler.firebaseapp.com",
+    projectId: "papd-scheduler",
+    storageBucket: "papd-scheduler.firebasestorage.app",
+    messagingSenderId: "637036264358",
+    appId: "1:637036264358:web:eb4d00fc3e9d4c051a2d67"
+  };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
