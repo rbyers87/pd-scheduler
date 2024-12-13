@@ -1,6 +1,6 @@
-import { supabase } from '../lib/supabase';
+import { SupabaseClient } from '@supabase/supabase-js';
 
-export async function initializeTestData() {
+export async function seedInitialData(supabase: SupabaseClient) {
   try {
     // Create admin user
     const { data: adminAuthData, error: adminAuthError } = await supabase.auth.signUp({
@@ -43,9 +43,8 @@ export async function initializeTestData() {
         comp: 10
       }
     });
-
-    console.log('Test data initialized successfully');
   } catch (error) {
-    console.error('Error initializing test data:', error);
+    console.error('Error seeding initial data:', error);
+    throw error;
   }
 }

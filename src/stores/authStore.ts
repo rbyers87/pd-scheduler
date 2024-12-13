@@ -1,47 +1,48 @@
 import { create } from 'zustand';
-import { auth, db } from '../lib/firebase';
-import { 
-  signInWithEmailAndPassword,
-  signOut as firebaseSignOut,
-  onAuthStateChanged
-} from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { signIn } from '../lib/auth/signIn';
+import { signOut } from '../lib/auth/signOut';
+import { getCurrentUser } from '../lib/auth/userProfile';
 import type { User } from '../types';
 
 interface AuthState {
   user: User | null;
   loading: boolean;
+  error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: true,
+  error: null,
   signIn: async (email: string, password: string) => {
-    const credential = await signInWithEmailAndPassword(auth, email, password);
-    const userDoc = await getDoc(doc(db, 'users', credential.user.uid));
-    if (userDoc.exists()) {
-      set({ user: { id: credential.user.uid, ...userDoc.data() } as User });
+    try {
+      set({ loading: true, error: null });
+      const { user } = await signIn(email, password);
+      set({ user, loading: false, error: null });
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
+      throw error;
     }
   },
   signOut: async () => {
-    await firebaseSignOut(auth);
-    set({ user: null });
-  }
+    try {
+      set({ loading: true, error: null });
+      await signOut();
+      set({ user: null, loading: false });
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
+      throw error;
+    }
+  },
+  setLoading: (loading: boolean) => set({ loading }),
+  setError: (error: string | null) => set({ error })
 }));
 
-// Setup auth listener
-onAuthStateChanged(auth, async (firebaseUser) => {
-  if (firebaseUser) {
-    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-    if (userDoc.exists()) {
-      useAuthStore.setState({ 
-        user: { id: firebaseUser.uid, ...userDoc.data() } as User,
-        loading: false 
-      });
-    }
-  } else {
-    useAuthStore.setState({ user: null, loading: false });
-  }
+// Initialize auth state
+getCurrentUser().then(user => {
+  useAuthStore.setState({ user, loading: false });
 });
