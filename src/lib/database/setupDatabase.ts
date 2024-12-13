@@ -1,89 +1,49 @@
 import { supabase } from '../supabase';
-import { handleDatabaseError } from './utils/errorHandling';
 import { checkDatabaseConnection } from './utils/initCheck';
+import { handleDatabaseError } from './utils/errorHandling';
+import { setupTables } from './setup/setupTables';
+import { setupPolicies } from './setup/setupPolicies';
+import { seedInitialData } from './seed/initialData';
+import { getDatabaseConfig } from './config/databaseConfig';
 
-async function setupSchema() {
-  const { error } = await supabase.query(`
-    -- Enable RLS
-    alter table if exists auth.users enable row level security;
+async function initializeDatabase() {
+  try {
+    // Setup tables first
+    console.log('Setting up tables...');
+    await setupTables(supabase);
+    
+    // Then setup policies
+    console.log('Setting up policies...');
+    await setupPolicies(supabase);
+    
+    // Finally seed initial data
+    console.log('Seeding initial data...');
+    await seedInitialData(supabase);
 
-    -- Create users table if not exists
-    create table if not exists public.users (
-      id uuid references auth.users(id) primary key,
-      email text not null unique,
-      name text not null,
-      role text not null check (role in ('admin', 'user')),
-      group text not null,
-      benefits jsonb not null default '{"vacation": 0, "sick": 0, "comp": 0}'::jsonb,
-      created_at timestamp with time zone default timezone('utc'::text, now()) not null
-    );
-
-    -- Enable RLS on users table
-    alter table public.users enable row level security;
-
-    -- Create basic policies
-    create policy if not exists "Users can view their own data"
-      on users for select
-      using (auth.uid() = id);
-
-    create policy if not exists "Admins can view all users"
-      on users for select
-      using (
-        exists (
-          select 1 
-          from users u 
-          where u.id = auth.uid() 
-          and u.role = 'admin'
-        )
-      );
-  `);
-
-  if (error) throw error;
-}
-
-async function setupSystemFunctions() {
-  const { error } = await supabase.query(`
-    create or replace function check_table_exists(table_name text)
-    returns boolean
-    language plpgsql
-    security definer
-    as $$
-    begin
-      return exists (
-        select 1
-        from information_schema.tables
-        where table_schema = 'public'
-        and table_name = $1
-      );
-    end;
-    $$;
-  `);
-
-  if (error) throw error;
+    return true;
+  } catch (error) {
+    const dbError = handleDatabaseError(error as any, 'database initialization');
+    console.error('Database initialization failed:', dbError.message);
+    throw dbError;
+  }
 }
 
 export async function setupDatabase() {
   try {
-    // Verify environment variables
-    const url = import.meta.env.VITE_SUPABASE_URL;
-    const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    
-    if (!url || !key) {
-      throw new Error('Missing Supabase configuration');
-    }
+    // Verify configuration
+    getDatabaseConfig();
 
     // Check database connection
     const isConnected = await checkDatabaseConnection(supabase);
     if (!isConnected) {
-      throw new Error('Could not connect to database');
+      throw new Error('Could not connect to database. Please check your Supabase configuration.');
     }
 
-    // Setup system functions first
-    await setupSystemFunctions();
+    // Initialize database
+    console.log('Initializing database...');
+    await initializeDatabase();
     
-    // Setup schema and policies
-    await setupSchema();
-
+    console.log('Database setup completed successfully');
     return true;
   } catch (error) {
     const dbError = handleDatabaseError(error as any, 'database setup');
